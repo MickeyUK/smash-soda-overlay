@@ -26,7 +26,7 @@
                                         <a v-else class="btn btn-disabled">Installed</a>
                                     </template>
                                     <template v-else>
-                                        <a v-if="!overlayStore.isThemeLoaded(plugin.name)" @click="downloadPlugin(plugin)" class="btn btn-secondary">Download</a>
+                                        <a v-if="!overlayStore.isThemeLoaded(plugin.id)" @click="downloadPlugin(plugin)" class="btn btn-secondary">Download</a>
                                         <a v-else class="btn btn-disabled">Installed</a>
                                     </template>
                                 </div>
@@ -78,13 +78,19 @@ function confirm() {
 
 async function downloadPlugin(plugin: any) {
     isBusy.value = true;
-    await DownloadPlugin(plugin.id, plugin.files);
-    if (props.type === 'plugins') {
-        overlayStore.loadPlugins();
-    } else {
-        overlayStore.loadThemes();
+
+    try {
+        if (props.type === 'plugins') {
+            await DownloadPlugin(plugin.id, plugin.files);
+            await overlayStore.loadPlugins();
+            return;
+        }
+
+        await DownloadTheme(plugin.id, plugin.files);
+        await overlayStore.loadThemes();
+    } finally {
+        isBusy.value = false;
     }
-    isBusy.value = false;
 }
 </script>
 <style lang="scss" scoped>

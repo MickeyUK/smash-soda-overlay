@@ -162,24 +162,15 @@ export const useOverlayStore = defineStore('overlayStore', () => {
     async function loadThemes() {
        
         const loadedThemes = await GetOverlayStyles();
-        
-        loadedThemes.forEach(theme => {
-            
-            // Skip themes already loaded
-            if (themes.value.find(t => t.id === theme.ID)) {
-                return;
+
+        themes.value = loadedThemes.map(theme => new OverlayTheme({
+            id: theme.ID,
+            meta: {
+                name: theme.Meta?.name || theme.ID,
+                author: theme.Meta?.author || 'Unknown',
+                description: theme.Meta?.description || ''
             }
-
-            themes.value.push(new OverlayTheme({
-                id: theme.ID,
-                meta: {
-                    name: theme.Meta.name,
-                    author: theme.Meta.author,
-                    description: theme.Meta.description
-                }
-            }));
-
-        })
+        }));
 
     }
 
@@ -562,6 +553,7 @@ export const useOverlayStore = defineStore('overlayStore', () => {
 
     return {
         widgets,
+        themes,
         customWidgets,
         plugins,
         loadThemes,

@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { computed, onMounted, onBeforeUnmount, nextTick, ref } from 'vue';
+import { computed, onMounted, onBeforeUnmount, nextTick, ref, watch } from 'vue';
 import { useOverlayStore } from '@/stores/overlayStore';
 import { useConfigStore } from '@/stores/configStore';
 import OverlayWidget from '@/models/OverlayWidget';
@@ -15,22 +15,38 @@ let dragging = false;
 let resizingDir: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | null = null;
 let startX = 0, startY = 0, startLeft = 0, startTop = 0, startW = 0, startH = 0;
 
+function getZoomScale() {
+    return Math.max(0.5, Number(configStore.app.overlay.zoom) || 1);
+}
+
+function getViewportSize() {
+    const zoom = getZoomScale();
+    return {
+        width: window.innerWidth / zoom,
+        height: window.innerHeight / zoom,
+    };
+}
+
 function clampRect(x: number, y: number, w: number, h: number) {
-    const maxX = window.innerWidth - w;
-    const maxY = window.innerHeight - h;
+    const viewport = getViewportSize();
+    const clampedW = Math.min(Math.max(w, props.widget.position.minWidth || 1), viewport.width);
+    const clampedH = Math.min(Math.max(h, props.widget.position.minHeight || 1), viewport.height);
+    const maxX = viewport.width - clampedW;
+    const maxY = viewport.height - clampedH;
 
     return {
         x: Math.max(0, Math.min(x, maxX)),
         y: Math.max(0, Math.min(y, maxY)),
-        w: Math.max(props.widget.position.minWidth || 1, Math.min(w, window.innerWidth)),
-        h: Math.max(props.widget.position.minHeight || 1, Math.min(h, window.innerHeight)),
+        w: clampedW,
+        h: clampedH,
     };
 }
 
 function normalizeToCustom() {
     if (props.widget.position.position === 'custom') return;
 
-    const resolved = props.widget.resolvePosition(window.innerWidth, window.innerHeight);
+    const viewport = getViewportSize();
+    const resolved = props.widget.resolvePosition(viewport.width, viewport.height);
     const clamped = clampRect(resolved.x, resolved.y, props.widget.position.w, props.widget.position.h);
 
     props.widget.moveTo(clamped.x, clamped.y);
@@ -53,7 +69,8 @@ if (props.widget.position.position === 'custom') {
 
 const style = computed(() => {
     const pos = props.widget.position;
-    const { x, y } = props.widget.resolvePosition(window.innerWidth, window.innerHeight);
+    const viewport = getViewportSize();
+    const { x, y } = props.widget.resolvePosition(viewport.width, viewport.height);
 
     // Only use autoWidth/autoHeight if position is not 'custom'
     const useAuto = pos.position !== 'custom';
@@ -117,10 +134,14 @@ function startResize(
 }
 
 function onMove(e: MouseEvent) {
+    const zoom = getZoomScale();
+    const deltaX = (e.clientX - startX) / zoom;
+    const deltaY = (e.clientY - startY) / zoom;
+
     if (dragging) {
         const next = clampRect(
-            startLeft + (e.clientX - startX),
-            startTop + (e.clientY - startY),
+            startLeft + deltaX,
+            startTop + deltaY,
             props.widget.position.w,
             props.widget.position.h
         );
@@ -134,8 +155,8 @@ function onMove(e: MouseEvent) {
         let newW = startW;
         let newH = startH;
 
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
+        const dx = deltaX;
+        const dy = deltaY;
 
         switch (resizingDir) {
             case 'top-left':
@@ -203,6 +224,15 @@ function resizeToContent() {
     const clamped = clampRect(pos.x, pos.y, w, h);
     props.widget.resize(clamped.w, clamped.h);
 }
+
+watch(
+    () => configStore.app.overlay.zoom,
+    () => {
+        if (props.widget.position.position === 'custom') {
+            clampWidget();
+        }
+    }
+);
 
 onMounted(() => {
     if (props.widget.position.autoWidth || props.widget.position.autoHeight) {

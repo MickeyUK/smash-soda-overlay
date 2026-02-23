@@ -23,6 +23,7 @@ export const useConfigStore = defineStore('configStore', () => {
     async function init() {
         await resetConfig();
         await loadConfig();
+        applyOverlayZoom();
         await registerHotkeys();
         await handleHotkeys();
 
@@ -100,6 +101,17 @@ export const useConfigStore = defineStore('configStore', () => {
     async function resetConfig() {
         app.value = new AppConfig();
         await saveConfig();
+    }
+
+    /**
+     * Applies the current zoom level to the overlay surface.
+     */
+    function applyOverlayZoom() {
+        const zoom = Math.max(0.5, Math.min(1.5, Number(app.value.overlay.zoom) || 1));
+        app.value.overlay.zoom = zoom;
+
+        document.body.style.transformOrigin = 'top left';
+        document.body.style.transform = `scale(${zoom})`;
     }
 
     /**
@@ -183,15 +195,17 @@ export const useConfigStore = defineStore('configStore', () => {
         });
 
         Events.On('hotkey:zoom:in', () => {
-
-            // Find document body
             app.value.overlay.zoom = Math.min(1.5, app.value.overlay.zoom + 0.1);
+            applyOverlayZoom();
+            saveConfig();
 
         });
 
         Events.On('hotkey:zoom:out', () => {
 
             app.value.overlay.zoom = Math.max(0.5, app.value.overlay.zoom - 0.1);
+            applyOverlayZoom();
+            saveConfig();
 
         });
 

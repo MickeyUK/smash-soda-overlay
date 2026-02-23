@@ -1,32 +1,23 @@
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useConfigStore } from '@/stores/configStore';
 import { useOverlayStore } from '@/stores/overlayStore';
 import { GetMonitors, MoveMainWindowToMonitor, Focus } from '@bindings/windowservice';
-import { GetOverlayStyles } from '@bindings/styleservice';
 
 const configStore = useConfigStore();
 const defaultConfig = ref(configStore.app.clone());
 const overlayStore = useOverlayStore();
 
-const themes = ref([]);
 const displays = ref([]);
 
-async function loadThemes() {
-    const styles = await GetOverlayStyles();
-
-    themes.value = [
-        { label: 'Default', value: 'default' },
-        ...styles.map((s) => {
-            const label = s.Meta?.name || s.Meta?.Name || s.ID || s.ID || 'Unknown';
-            const value = s.ID || s.ID || s.Meta?.id || s.Meta?.Id || label;
-            return {
-                label,
-                value
-            }
-        })
-    ];
-}
+const themes = computed(() => [
+    { label: 'Default', value: 'default' },
+    ...overlayStore.themes.map((theme) => {
+        const label = theme.meta?.name || theme.id || 'Unknown';
+        const value = theme.id || label;
+        return { label, value };
+    })
+]);
 
 async function getDisplays() {
     const monitors = await GetMonitors();
@@ -48,24 +39,32 @@ async function setTheme(theme: string) {
     await overlayStore.applyTheme(theme);
 }
 
+async function openThemeRegistry() {
+    await overlayStore.getThemes();
+}
+
 onMounted(async () => {
-    await loadThemes();
+    await overlayStore.loadThemes();
     await getDisplays();
 })
 </script>
 <template>
 
     <form class="form">
-        <FormSelect
-        v-if="themes.length > 0"
-        label="Theme"
-        name="theme"
-        :value="configStore.app.overlay.theme"
-        :options="themes"
-        @oninput="setTheme($event)"
-        >
-            Select the custom theme for the overlay.
-        </FormSelect>
+        <div class="theme-group" v-if="themes.length > 0">
+            <FormSelect
+            label="Theme"
+            name="theme"
+            :value="configStore.app.overlay.theme"
+            :options="themes"
+            @oninput="setTheme($event)"
+            >
+                Select the custom theme for the overlay.
+            </FormSelect>
+            <div class="theme-actions">
+                <div class="btn btn-secondary" @click="openThemeRegistry">Get More Themes</div>
+            </div>
+        </div>
 
         <FormRange
         label="Opacity"
@@ -94,5 +93,16 @@ onMounted(async () => {
     display: flex;
     flex-direction: column;
     gap: 1rem;
+}
+
+.theme-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.theme-actions {
+    display: flex;
+    justify-content: flex-end;
 }
 </style>

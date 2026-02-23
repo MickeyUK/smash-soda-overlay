@@ -119,6 +119,34 @@ onBeforeUnmount(() => {
     margin-bottom: .5rem;
 }
 
+.chat-bubbles .chat-bubble {
+    display: flex;
+    align-items: baseline;
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.chat-bubbles .message-guest {
+    flex-shrink: 0;
+    max-width: 35%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chat-bubbles .message-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chat-bubbles .message-time {
+    flex-shrink: 0;
+}
+
 .message-guest {
     margin-right: 10px;
 }
